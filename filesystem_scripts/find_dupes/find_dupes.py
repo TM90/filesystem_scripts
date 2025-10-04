@@ -43,7 +43,9 @@ def find_dupes(path: Path, _result_page: StringIO) -> None:
 
 
 def find_set_b_files_already_in_set_a(
-    file_path_dataset_a: Path, file_path_dataset_b: Path
+    file_path_dataset_a: Path,
+    file_path_dataset_b: Path,
+    delete: bool,
 ) -> None:
     print("running with insertion_folder")
     filelist = create_checksum_filelist(
@@ -55,9 +57,12 @@ def find_set_b_files_already_in_set_a(
         matches = len(
             [file for file in files if str(file).startswith(str(file_path_dataset_b))]
         )
-        if matches > 0:
+        if matches > 0 and matches != len(files):
             print(f"{checksum}:")
             for file in files:
+                if str(file).startswith(str(file_path_dataset_b)) and delete:
+                    print(f"deleting {str(file)}")
+                    file.unlink()
                 print(f"- {str(file)}")
 
 
@@ -79,6 +84,7 @@ if __name__ == "__main__":
         "-D",
         "--delete",
         help="in insertion mode delete duplicates in data_set_b",
+        action="store_true",
     )
     args = parser.parse_args()
     if not args.insertion_folder:
@@ -86,5 +92,8 @@ if __name__ == "__main__":
         find_dupes(args.filepath, fp)
         sys.exit(0)
     else:
-        find_set_b_files_already_in_set_a(args.filepath, args.insertion_folder)
+        delete = False
+        if args.delete:
+            delete = True
+        find_set_b_files_already_in_set_a(args.filepath, args.insertion_folder, delete)
         sys.exit(0)
