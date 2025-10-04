@@ -82,11 +82,9 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
     if not args.insertion_folder:
-        print("a")
         fp = StringIO()
         find_dupes(args.filepath, fp)
         sys.exit(0)
     else:
-        print("b")
         find_set_b_files_already_in_set_a(args.filepath, args.insertion_folder)
         sys.exit(0)
