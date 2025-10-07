@@ -39,9 +39,8 @@ def find_dupes(path: Path, _result_page: StringIO) -> None:
 def find_set_b_files_already_in_set_a(
     file_path_dataset_a: Path,
     file_path_dataset_b: Path,
-    delete: bool,
+    dry_run: bool,
 ) -> None:
-    print("running with insertion_folder")
     filelist = create_checksum_filelist(
         file_path_dataset_a,
     )
@@ -54,9 +53,10 @@ def find_set_b_files_already_in_set_a(
         if matches > 0 and matches != len(files):
             print(f"{checksum}:")
             for file in files:
-                if str(file).startswith(str(file_path_dataset_b)) and delete:
+                if str(file).startswith(str(file_path_dataset_b)):
                     print(f"deleting {str(file)}")
-                    file.unlink()
+                    if not dry_run:
+                        file.unlink()
                 print(f"- {str(file)}")
 
 
@@ -68,26 +68,31 @@ if __name__ == "__main__":
         help="dataset A in which to search for duplicates",
     )
     _ = parser.add_argument(
-        "-I",
-        "--insertion_folder",
+        "-D",
+        "--delete_duplicates_in",
         type=Path,
         required=False,
-        help="data_set_b which should be inserted in dataset A",
+        help="folder to delete duplicates which are within filepath in ...",
     )
     _ = parser.add_argument(
-        "-D",
-        "--delete",
-        help="in insertion mode delete duplicates in data_set_b",
+        "-dry",
+        "--dry-run",
+        help="dry-run only report filesystem changes...",
         action="store_true",
     )
     args = parser.parse_args()
-    if not args.insertion_folder:
+    dry_run = False
+    if args.dry_run:
+        dry_run = True
+
+    if not args.delete_duplicates_in:
         fp = StringIO()
         find_dupes(args.filepath, fp)
         sys.exit(0)
     else:
-        delete = False
-        if args.delete:
-            delete = True
-        find_set_b_files_already_in_set_a(args.filepath, args.insertion_folder, delete)
+        find_set_b_files_already_in_set_a(
+            args.filepath,
+            args.delete_duplicates_in,
+            dry_run,
+        )
         sys.exit(0)
