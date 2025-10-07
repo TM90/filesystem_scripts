@@ -18,18 +18,12 @@ def parse_to_dict(raw: str) -> dict[str, list[Path]]:
 
 
 def create_checksum_filelist(
-    path: Path, exclude: Path | None = None
+    path: Path,
 ) -> dict[str, list[Path]]:
-    if exclude:
-        result = subprocess.check_output(
-            f"find {str(path)} -type f -not -path {str(exclude)} | xargs -d '\n' sha256sum",
-            shell=True,
-        )
-    else:
-        result = subprocess.check_output(
-            f"find {str(path)} -type f | xargs -d '\n' sha256sum",
-            shell=True,
-        )
+    result = subprocess.check_output(
+        f"find {str(path)} -type f | xargs -d '\n' sha256sum",
+        shell=True,
+    )
     return parse_to_dict(result.decode("utf-8"))
 
 
