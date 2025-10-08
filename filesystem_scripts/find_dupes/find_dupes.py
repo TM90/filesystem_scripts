@@ -3,6 +3,8 @@ from io import StringIO
 from pathlib import Path
 import sys
 import subprocess
+from time import sleep
+from iterfzf import iterfzf
 
 
 def parse_to_dict(raw: str) -> dict[str, list[Path]]:
@@ -27,16 +29,20 @@ def create_checksum_filelist(
     return parse_to_dict(result.decode("utf-8"))
 
 
-def find_dupes(path: Path, _result_page: StringIO) -> None:
-    filelist = create_checksum_filelist(path)
-    reduced_list = {key: value for key, value in filelist.items() if len(value) > 1}
-    for checksum, files in reduced_list.items():
+def report_dupes(files: dict[str, list[Path]]) -> None:
+    for checksum, file_list in files.items():
         print(f"{checksum}:")
-        for file in files:
+        for file in file_list:
             print(f"\t - {file}")
 
 
-def find_set_b_files_already_in_set_a(
+def find_dupes(path: Path, _result_page: StringIO) -> dict[str, list[Path]]:
+    filelist = create_checksum_filelist(path)
+    reduced_list = {key: value for key, value in filelist.items() if len(value) > 1}
+    return reduced_list
+
+
+def delete_duplicates_from_a_in_b(
     file_path_dataset_a: Path,
     file_path_dataset_b: Path,
     dry_run: bool,
@@ -60,6 +66,19 @@ def find_set_b_files_already_in_set_a(
                 print(f"- {str(file)}")
 
 
+def resolve_duplicates_interactivly(files: dict[str, list[Path]]) -> None:
+    for checksum, file_list in files.items():
+        selection = iterfzf(
+            [str(file) for file in file_list],
+            header=f"checksum:{checksum}",
+            multi=True,
+        )
+        if selection:
+            for select in selection:
+                print(f"deleting {select}")
+                sleep(0.2)
+
+
 if __name__ == "__main__":
     parser = ArgumentParser(description="list duplicated files")
     _ = parser.add_argument(
@@ -80,6 +99,12 @@ if __name__ == "__main__":
         help="dry-run only report filesystem changes...",
         action="store_true",
     )
+    _ = parser.add_argument(
+        "-i",
+        "--interactive",
+        help="resolve duplicates interactively",
+        action="store_true",
+    )
     args = parser.parse_args()
     dry_run = False
     if args.dry_run:
@@ -87,10 +112,13 @@ if __name__ == "__main__":
 
     if not args.delete_duplicates_in:
         fp = StringIO()
-        find_dupes(args.filepath, fp)
+        files = find_dupes(args.filepath, fp)
+        report_dupes(files)
+        if args.interactive:
+            resolve_duplicates_interactivly(files)
         sys.exit(0)
     else:
-        find_set_b_files_already_in_set_a(
+        delete_duplicates_from_a_in_b(
             args.filepath,
             args.delete_duplicates_in,
             dry_run,
