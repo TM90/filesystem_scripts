@@ -36,7 +36,7 @@ def report_dupes(files: dict[str, list[Path]]) -> None:
             print(f"\t - {file}")
 
 
-def find_dupes(path: Path, _result_page: StringIO) -> dict[str, list[Path]]:
+def find_dupes(path: Path) -> dict[str, list[Path]]:
     filelist = create_checksum_filelist(path)
     reduced_list = {key: value for key, value in filelist.items() if len(value) > 1}
     return reduced_list
@@ -67,19 +67,26 @@ def delete_duplicates_from_a_in_b(
 
 
 def resolve_duplicates_interactivly(files: dict[str, list[Path]]) -> None:
-    for checksum, file_list in files.items():
-        selection = iterfzf(
-            [str(file) for file in file_list],
-            header=f"checksum:{checksum}",
-            multi=True,
-        )
-        if selection:
-            for select in selection:
-                print(f"deleting {select}")
-                sleep(0.2)
+    length = len(files.items())
+    for n, (checksum, file_list) in enumerate(files.items()):
+        try:
+            selection = iterfzf(
+                [str(file) for file in file_list],
+                header=f"checksum:{checksum} {n}/{length}",
+                multi=True,
+            )
+        except KeyboardInterrupt:
+            print("skipping...")
+            continue
+        assert selection is not None
+        for select in selection:
+            print(f"deleting {select}")
+            assert isinstance(select, str)
+            Path(select).unlink()
+            sleep(0.2)
 
 
-if __name__ == "__main__":
+def build_cli_parser() -> ArgumentParser:
     parser = ArgumentParser(description="list duplicated files")
     _ = parser.add_argument(
         "filepath",
@@ -105,18 +112,23 @@ if __name__ == "__main__":
         help="resolve duplicates interactively",
         action="store_true",
     )
+    return parser
+
+
+if __name__ == "__main__":
+    parser = build_cli_parser()
     args = parser.parse_args()
     dry_run = False
     if args.dry_run:
         dry_run = True
 
     if not args.delete_duplicates_in:
-        fp = StringIO()
-        files = find_dupes(args.filepath, fp)
+        files = find_dupes(args.filepath)
         report_dupes(files)
         if args.interactive:
             resolve_duplicates_interactivly(files)
         sys.exit(0)
+
     else:
         delete_duplicates_from_a_in_b(
             args.filepath,
